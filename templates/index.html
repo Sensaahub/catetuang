@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CatetUang - Keuangan Pribadi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-gradient">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="/">
+            <i class="bi bi-wallet2 me-2"></i>CatetUang
+        </a>
+        <div class="d-flex align-items-center">
+            <a href="/" class="btn btn-sm btn-outline-light me-2"><i class="bi bi-speedometer2"></i> Dashboard</a>
+            <a href="/riwayat" class="btn btn-sm btn-outline-light"><i class="bi bi-clock-history"></i> Riwayat</a>
+        </div>
+    </div>
+</nav>
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="container mt-3">
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        <i class="bi bi-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>{{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<div class="container py-4">
+
+    <!-- Filter Bulan -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0"><i class="bi bi-calendar3 me-2"></i>Ringkasan Keuangan</h4>
+        <form method="GET" class="d-flex align-items-center gap-2">
+            <input type="month" name="bulan" value="{{ bulan }}" class="form-control form-control-sm" style="width:auto;" onchange="this.form.submit()">
+        </form>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card card-saldo border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="icon-box bg-primary bg-opacity-10 text-primary"><i class="bi bi-bank"></i></div>
+                        <span class="ms-2 text-muted small">Total Saldo</span>
+                    </div>
+                    <h4 class="mb-0 fw-bold {% if summary.saldo >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ summary.saldo|rupiah }}
+                    </h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="icon-box bg-success bg-opacity-10 text-success"><i class="bi bi-arrow-down-circle"></i></div>
+                        <span class="ms-2 text-muted small">Pemasukan</span>
+                    </div>
+                    <h5 class="mb-0 fw-bold text-success">{{ summary.masuk|rupiah }}</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="icon-box bg-danger bg-opacity-10 text-danger"><i class="bi bi-arrow-up-circle"></i></div>
+                        <span class="ms-2 text-muted small">Pengeluaran</span>
+                    </div>
+                    <h5 class="mb-0 fw-bold text-danger">{{ summary.keluar|rupiah }}</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="icon-box bg-info bg-opacity-10 text-info"><i class="bi bi-receipt"></i></div>
+                        <span class="ms-2 text-muted small">Transaksi</span>
+                    </div>
+                    <h5 class="mb-0 fw-bold">{{ summary.transaksi }}</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Kolom Kiri: Chart + Transaksi -->
+        <div class="col-lg-8">
+            <!-- Chart -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h6 class="card-title mb-3"><i class="bi bi-bar-chart-line me-2"></i>Pemasukan vs Pengeluaran</h6>
+                    <canvas id="chartKeuangan" height="200"></canvas>
+                </div>
+            </div>
+
+            <!-- Transaksi Terakhir -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="card-title mb-0"><i class="bi bi-list-ul me-2"></i>Transaksi Terakhir</h6>
+                        <a href="/riwayat" class="btn btn-sm btn-outline-primary">Lihat Semua</a>
+                    </div>
+                    {% if transaksi %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Tanggal</th>
+                                    <th>Kategori</th>
+                                    <th>Keterangan</th>
+                                    <th class="text-end">Jumlah</th>
+                                    <th class="text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for t in transaksi %}
+                                <tr>
+                                    <td><span class="text-muted small">{{ t.tanggal }}</span></td>
+                                    <td>
+                                        <span class="badge {% if t.tipe == 'pemasukan' %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} rounded-pill">
+                                            {{ t.kategori }}
+                                        </span>
+                                    </td>
+                                    <td class="text-muted small">{{ t.keterangan or '-' }}</td>
+                                    <td class="text-end fw-semibold {% if t.tipe == 'pemasukan' %}text-success{% else %}text-danger{% endif %}">
+                                        {% if t.tipe == 'pemasukan' %}+{% else %}-{% endif %}{{ t.jumlah|rupiah }}
+                                    </td>
+                                    <td class="text-center">
+                                        <form method="POST" action="/hapus/{{ t.id }}" onsubmit="return confirm('Hapus transaksi ini?')">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus">
+                                                <i class="bi bi-trash3"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                        Belum ada transaksi bulan ini
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Kolom Kanan: Form Tambah + Top Kategori -->
+        <div class="col-lg-4">
+            <!-- Form Tambah -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h6 class="card-title mb-3"><i class="bi bi-plus-circle me-2"></i>Tambah Transaksi</h6>
+                    <form method="POST" action="/tambah" id="formTambah">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Tanggal</label>
+                            <input type="date" name="tanggal" class="form-control" value="{{ today if today else '' }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Tipe</label>
+                            <select name="tipe" class="form-select" id="tipeSelect" required>
+                                <option value="pengeluaran">🔴 Pengeluaran</option>
+                                <option value="pemasukan">🟢 Pemasukan</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Kategori</label>
+                            <select name="kategori" class="form-select" id="kategoriSelect" required>
+                                {% for k in kategori_pengeluaran %}
+                                <option value="{{ k }}">{{ k }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Jumlah (Rp)</label>
+                            <input type="number" name="jumlah" class="form-control" min="1" step="any" placeholder="50000" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Keterangan</label>
+                            <input type="text" name="keterangan" class="form-control" placeholder="Makan siang..." maxlength="200">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-plus-lg me-1"></i>Tambah Transaksi
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Top Kategori Pengeluaran -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title mb-3"><i class="bi bi-pie-chart me-2"></i>Top Pengeluaran</h6>
+                    {% if top_kategori %}
+                    {% for k in top_kategori %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small">{{ k.kategori }}</span>
+                        <span class="fw-semibold text-danger small">{{ k.total|rupiah }}</span>
+                    </div>
+                    <div class="progress mb-3" style="height: 6px;">
+                        {% set pct = (k.total / top_kategori[0].total * 100)|int %}
+                        <div class="progress-bar bg-danger" style="width: {{ pct }}%"></div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted small text-center mb-0">Belum ada data</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Footer -->
+<footer class="text-center text-muted py-4 mt-4 border-top">
+    <small><i class="bi bi-wallet2 me-1"></i>CatetUang &copy; 2026 &mdash; Personal Finance Tracker</small>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Kategori dinamis berdasarkan tipe
+const kategoriData = {
+    pengeluaran: {{ kategori_pengeluaran|tojson }},
+    pemasukan: {{ kategori_pendapatan|tojson }}
+};
+
+document.getElementById('tipeSelect').addEventListener('change', function() {
+    const select = document.getElementById('kategoriSelect');
+    const kategori = kategoriData[this.value];
+    select.innerHTML = kategori.map(k => `<option value="${k}">${k}</option>`).join('');
+});
+
+// Chart
+const chartData = {{ chart_data|tojson }};
+if (chartData.length > 0) {
+    const ctx = document.getElementById('chartKeuangan').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: chartData.map(d => d.bulan),
+            datasets: [
+                {
+                    label: 'Pemasukan',
+                    data: chartData.map(d => d.pemasukan),
+                    backgroundColor: 'rgba(25, 135, 84, 0.7)',
+                    borderColor: 'rgb(25, 135, 84)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Pengeluaran',
+                    data: chartData.map(d => d.pengeluaran),
+                    backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                    borderColor: 'rgb(220, 53, 69)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ctx.dataset.label + ': Rp ' + ctx.raw.toLocaleString('id-ID')
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: v => 'Rp ' + (v/1000000).toFixed(1) + 'jt'
+                    }
+                }
+            }
+        }
+    });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+venv/
+.env
+
+# Database
+*.db
+
+# Other projects in this directory
+app/
+lms-mahasiswa/
+tests/
+calculator.html
+debug_test.py
+taskmanager.db
+test.db
+README.md
+seed.py
