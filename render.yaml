@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: catetuang
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn catetuang:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
